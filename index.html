@@ -27,6 +27,7 @@ html, body {
     perspective: 2500px;
     overflow: hidden;
     touch-action: pan-y;
+    background: black;
 }
 
 #under {
@@ -35,6 +36,8 @@ html, body {
     width: 100%;
     height: 100%;
     object-fit: contain;
+    z-index: 1;
+    background: black;
 }
 
 #page {
@@ -43,12 +46,11 @@ html, body {
     width: 100%;
     height: 100%;
     transform-style: preserve-3d;
-    transform-origin: right center;
-    transition: transform 950ms ease;
+    transform-origin: left center;
+    transition: transform 950ms ease-in-out;
     z-index: 2;
-    pointer-events: none;
-    transform: rotateY(0deg);
 }
+
 .face {
     position: absolute;
     inset: 0;
@@ -56,40 +58,76 @@ html, body {
     height: 100%;
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
+    background: black;
 }
 
 .face img {
     width: 100%;
     height: 100%;
     object-fit: contain;
+    display: block;
+    background: black;
 }
 
 #back {
     transform: rotateY(180deg);
 }
 
-#page.flipping {
+#page.flipping-forward {
     transform: rotateY(-180deg);
 }
 
-#page.reverse {
-    transform-origin: left center;
-}
-
-#page.reverse.flipping {
+#page.flipping-backward {
     transform: rotateY(180deg);
 }
 
-#left, #right {
+/* Invisible navigation zones with subtle arrows */
+
+.nav {
     position: absolute;
     top: 0;
-    width: 22%;
     height: 100%;
+    width: 15%;
     z-index: 5;
+    display: flex;
+    align-items: center;
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,0.65);
+    font-size: 36px;
+    cursor: pointer;
+    transition: color 0.2s;
+    outline: none;
 }
 
-#left { left: 0; }
-#right { right: 0; }
+.nav:hover {
+    color: white;
+}
+
+#left {
+    left: 0;
+    justify-content: flex-start;
+    padding-left: 18px;
+}
+
+#right {
+    right: 0;
+    justify-content: flex-end;
+    padding-right: 18px;
+}
+
+.nav:disabled {
+    opacity: 0;
+    cursor: default;
+}
+
+@media (max-width: 600px) {
+    .nav {
+        width: 13%;
+        font-size: 27px;
+    }
+}
+
 </style>
 </head>
 
@@ -97,50 +135,80 @@ html, body {
 
 <div id="book">
 
-<img id="under" src="photos/photo1.jpg">
+    <img id="under" src="photos/photo2.jpg" alt="">
 
-<div id="page">
+    <div id="page">
 
-<div class="face" id="front">
-<img src="photos/photo1.jpg">
-</div>
+        <div class="face" id="front">
+            <img id="front-img" src="photos/photo1.jpg" alt="">
+        </div>
 
-<div class="face" id="back">
-<img src="photos/photo2.jpg">
-</div>
+        <div class="face" id="back">
+            <img id="back-img" src="photos/photo2.jpg" alt="">
+        </div>
 
-</div>
+    </div>
 
-<div id="left"></div>
-<div id="right"></div>
+    <button class="nav" id="left" aria-label="Previous page">
+        &#10094;
+    </button>
+
+    <button class="nav" id="right" aria-label="Next page">
+        &#10095;
+    </button>
 
 </div>
 
 <script>
+
+// ALL 12 PHOTOS
+
 const photos = [
-"photos/photo1.jpg",
-"photos/photo2.jpg",
-"photos/photo3.jpg",
-"photos/photo4.jpg",
-"photos/photo5.jpg",
-"photos/photo6.jpg",
-"photos/photo7.jpg",
-"photos/photo8.jpg",
-"photos/photo9.jpg",
-"photos/photo10.jpg"
-"photos/photo11.jpg",
-"photos/photo12.jpg"
+    "photos/photo1.jpg",
+    "photos/photo2.jpg",
+    "photos/photo3.jpg",
+    "photos/photo4.jpg",
+    "photos/photo5.jpg",
+    "photos/photo6.jpg",
+    "photos/photo7.jpg",
+    "photos/photo8.jpg",
+    "photos/photo9.jpg",
+    "photos/photo10.jpg",
+    "photos/photo11.jpg",
+    "photos/photo12.jpg"
 ];
+
+// PRELOAD PHOTOS
+
+photos.forEach(src => {
+    const img = new Image();
+    img.src = src;
+});
+
+// BOOK ELEMENTS
 
 let current = 0;
 let busy = false;
 
 const page = document.getElementById("page");
 const under = document.getElementById("under");
-const front = document.querySelector("#front img");
-const back = document.querySelector("#back img");
+const front = document.getElementById("front-img");
+const back = document.getElementById("back-img");
+
+const left = document.getElementById("left");
+const right = document.getElementById("right");
+
+// UPDATE BUTTONS
+
+function updateButtons() {
+    left.disabled = current === 0 || busy;
+    right.disabled = current === photos.length - 1 || busy;
+}
+
+// PAGE TURN FUNCTION
 
 function turn(direction) {
+
     if (busy) return;
 
     const next = current + direction;
@@ -148,53 +216,133 @@ function turn(direction) {
     if (next < 0 || next >= photos.length) return;
 
     busy = true;
+    updateButtons();
+
+    // Prepare the next image
+
+    back.src = photos[next];
     under.src = photos[next];
 
+    // Apply the correct flipping direction
+
     if (direction === 1) {
-        page.classList.remove("reverse");
-        front.src = photos[current];
-        back.src = photos[next];
+        page.classList.remove("flipping-backward");
+        page.classList.add("flipping-forward");
     } else {
-        page.classList.add("reverse");
-        front.src = photos[current];
-        back.src = photos[next];
+        page.classList.remove("flipping-forward");
+        page.classList.add("flipping-backward");
     }
 
-    page.classList.remove("flipping");
-    void page.offsetWidth;
-
-    requestAnimationFrame(() => {
-        page.classList.add("flipping");
-    });
+    // Wait for the animation to finish
 
     setTimeout(() => {
+
         current = next;
+
+        // Reset the page without another animation
+
+        page.style.transition = "none";
+
         front.src = photos[current];
-        page.classList.remove("flipping", "reverse");
+
+        const following = current + 1;
+
+        back.src = photos[
+            following < photos.length ? following : current
+        ];
+
+        const underneath = current + 1;
+
+        under.src = photos[
+            underneath < photos.length ? underneath : current
+        ];
+
+        page.classList.remove(
+            "flipping-forward",
+            "flipping-backward"
+        );
+
+        // Restart animation
+
+        void page.offsetWidth;
+
+        page.style.transition = "";
+
         busy = false;
-    }, 980);
+        updateButtons();
+
+    }, 960);
 }
 
-document.getElementById("right").onclick = () => turn(1);
-document.getElementById("left").onclick = () => turn(-1);
+// BUTTON CONTROLS
 
-document.addEventListener("keydown", e => {
-    if (e.key === "ArrowRight") turn(1);
-    if (e.key === "ArrowLeft") turn(-1);
+right.addEventListener("click", () => {
+    turn(1);
 });
 
-let startX = 0;
+left.addEventListener("click", () => {
+    turn(-1);
+});
 
-document.getElementById("book").addEventListener("touchstart", e => {
-    startX = e.changedTouches[0].clientX;
-}, {passive:true});
+// KEYBOARD CONTROLS
 
-document.getElementById("book").addEventListener("touchend", e => {
-    const difference = e.changedTouches[0].clientX - startX;
-    if (Math.abs(difference) > 45) {
-        turn(difference < 0 ? 1 : -1);
+document.addEventListener("keydown", e => {
+
+    if (e.key === "ArrowRight") {
+        e.preventDefault();
+        turn(1);
     }
-}, {passive:true});
+
+    if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        turn(-1);
+    }
+
+});
+
+// MOBILE SWIPE CONTROLS
+
+let startX = 0;
+let startY = 0;
+
+const book = document.getElementById("book");
+
+book.addEventListener("touchstart", e => {
+
+    startX = e.changedTouches[0].clientX;
+    startY = e.changedTouches[0].clientY;
+
+}, { passive: true });
+
+book.addEventListener("touchend", e => {
+
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+
+    const differenceX = endX - startX;
+    const differenceY = endY - startY;
+
+    if (
+        Math.abs(differenceX) > 45 &&
+        Math.abs(differenceX) > Math.abs(differenceY)
+    ) {
+        if (differenceX < 0) {
+            turn(1);
+        } else {
+            turn(-1);
+        }
+    }
+
+}, { passive: true });
+
+// INITIAL SETTINGS
+
+front.src = photos[0];
+back.src = photos[1];
+under.src = photos[1];
+
+updateButtons();
+
 </script>
 
 </body>
