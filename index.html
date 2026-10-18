@@ -1,0 +1,199 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Photo Book</title>
+
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: black;
+}
+
+#book {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+    perspective: 2500px;
+    overflow: hidden;
+    touch-action: pan-y;
+}
+
+#under {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+#page {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transform-origin: right center;
+    transition: transform 950ms ease;
+    z-index: 2;
+    pointer-events: none;
+    transform: rotateY(0deg);
+}
+.face {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+.face img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+#back {
+    transform: rotateY(180deg);
+}
+
+#page.flipping {
+    transform: rotateY(-180deg);
+}
+
+#page.reverse {
+    transform-origin: left center;
+}
+
+#page.reverse.flipping {
+    transform: rotateY(180deg);
+}
+
+#left, #right {
+    position: absolute;
+    top: 0;
+    width: 22%;
+    height: 100%;
+    z-index: 5;
+}
+
+#left { left: 0; }
+#right { right: 0; }
+</style>
+</head>
+
+<body>
+
+<div id="book">
+
+<img id="under" src="photos/photo1.jpg">
+
+<div id="page">
+
+<div class="face" id="front">
+<img src="photos/photo1.jpg">
+</div>
+
+<div class="face" id="back">
+<img src="photos/photo2.jpg">
+</div>
+
+</div>
+
+<div id="left"></div>
+<div id="right"></div>
+
+</div>
+
+<script>
+const photos = [
+"photos/photo1.jpg",
+"photos/photo2.jpg",
+"photos/photo3.jpg",
+"photos/photo4.jpg",
+"photos/photo5.jpg",
+"photos/photo6.jpg",
+"photos/photo7.jpg",
+"photos/photo8.jpg",
+"photos/photo9.jpg",
+"photos/photo10.jpg"
+];
+
+let current = 0;
+let busy = false;
+
+const page = document.getElementById("page");
+const under = document.getElementById("under");
+const front = document.querySelector("#front img");
+const back = document.querySelector("#back img");
+
+function turn(direction) {
+    if (busy) return;
+
+    const next = current + direction;
+
+    if (next < 0 || next >= photos.length) return;
+
+    busy = true;
+    under.src = photos[next];
+
+    if (direction === 1) {
+        page.classList.remove("reverse");
+        front.src = photos[current];
+        back.src = photos[next];
+    } else {
+        page.classList.add("reverse");
+        front.src = photos[current];
+        back.src = photos[next];
+    }
+
+    page.classList.remove("flipping");
+    void page.offsetWidth;
+
+    requestAnimationFrame(() => {
+        page.classList.add("flipping");
+    });
+
+    setTimeout(() => {
+        current = next;
+        front.src = photos[current];
+        page.classList.remove("flipping", "reverse");
+        busy = false;
+    }, 980);
+}
+
+document.getElementById("right").onclick = () => turn(1);
+document.getElementById("left").onclick = () => turn(-1);
+
+document.addEventListener("keydown", e => {
+    if (e.key === "ArrowRight") turn(1);
+    if (e.key === "ArrowLeft") turn(-1);
+});
+
+let startX = 0;
+
+document.getElementById("book").addEventListener("touchstart", e => {
+    startX = e.changedTouches[0].clientX;
+}, {passive:true});
+
+document.getElementById("book").addEventListener("touchend", e => {
+    const difference = e.changedTouches[0].clientX - startX;
+    if (Math.abs(difference) > 45) {
+        turn(difference < 0 ? 1 : -1);
+    }
+}, {passive:true});
+</script>
+
+</body>
+</html>
